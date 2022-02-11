@@ -120,7 +120,7 @@ func (cli *Client) sendIQ(query infoQuery) (*waBinary.Node, error) {
 		return nil, err
 	}
 	if query.Timeout == 0 {
-		query.Timeout = 75 * time.Second
+		query.Timeout = 2 * time.Minute
 	}
 	if query.Context == nil {
 		query.Context = context.Background()
