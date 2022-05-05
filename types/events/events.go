@@ -117,10 +117,10 @@ func (tb *TemporaryBan) String() string {
 type ConnectFailureReason int
 
 const (
-	ConnectFailureLoggedOut     ConnectFailureReason = 401
-	ConnectFailureTempBanned    ConnectFailureReason = 402
-	ConnectFailureBanned        ConnectFailureReason = 403
-	ConnectFailureUnknownLogout ConnectFailureReason = 406
+	ConnectFailureLoggedOut      ConnectFailureReason = 401
+	ConnectFailureTempBanned     ConnectFailureReason = 402
+	ConnectFailureMainDeviceGone ConnectFailureReason = 403
+	ConnectFailureUnknownLogout  ConnectFailureReason = 406
 
 	ConnectFailureClientOutdated ConnectFailureReason = 405
 	ConnectFailureBadUserAgent   ConnectFailureReason = 409
@@ -131,7 +131,7 @@ const (
 var connectFailureReasonMessage = map[ConnectFailureReason]string{
 	ConnectFailureLoggedOut:      "logged out from another device",
 	ConnectFailureTempBanned:     "account temporarily banned",
-	ConnectFailureBanned:         "account banned from WhatsApp",
+	ConnectFailureMainDeviceGone: "primary device was logged out", // seems to happen for both bans and switching phones
 	ConnectFailureUnknownLogout:  "logged out for unknown reason",
 	ConnectFailureClientOutdated: "client is out of date",
 	ConnectFailureBadUserAgent:   "client user agent was rejected",
@@ -139,7 +139,7 @@ var connectFailureReasonMessage = map[ConnectFailureReason]string{
 
 // IsLoggedOut returns true if the client should delete session data due to this connect failure.
 func (cfr ConnectFailureReason) IsLoggedOut() bool {
-	return cfr == ConnectFailureLoggedOut || cfr == ConnectFailureBanned || cfr == ConnectFailureUnknownLogout
+	return cfr == ConnectFailureLoggedOut || cfr == ConnectFailureMainDeviceGone || cfr == ConnectFailureUnknownLogout
 }
 
 // String returns the reason code and a short human-readable description of the error.
@@ -347,10 +347,17 @@ type OfflineSyncCompleted struct {
 	Count int
 }
 
+type MediaRetryError struct {
+	Code int
+}
+
 // MediaRetry is emitted when the phone sends a response to a media retry request.
 type MediaRetry struct {
 	Ciphertext []byte
 	IV         []byte
+
+	// Sometimes there's an unencrypted media retry error. In these cases, Ciphertext and IV will be nil.
+	Error *MediaRetryError
 
 	Timestamp time.Time // The time of the response.
 
