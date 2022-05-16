@@ -55,6 +55,20 @@ type QRScannedWithoutMultidevice struct{}
 // at this point, which is why this event doesn't contain any data.
 type Connected struct{}
 
+// KeepAliveTimeout is emitted when the keepalive ping request to WhatsApp web servers times out.
+//
+// Currently, there's no automatic handling for these, but it's expected that the TCP connection will
+// either start working again or notice it's dead on its own eventually. Clients may use this event to
+// decide to force a disconnect+reconnect faster.
+type KeepAliveTimeout struct {
+	ErrorCount  int
+	LastSuccess time.Time
+}
+
+// KeepAliveRestored is emitted if the keepalive pings start working again after some KeepAliveTimeout events.
+// Note that if the websocket disconnects before the pings start working, this event will not be emitted.
+type KeepAliveRestored struct{}
+
 // LoggedOut is emitted when the client has been unpaired from the phone.
 //
 // This can happen while connected (stream:error messages) or right after connecting (connect failure messages).
@@ -203,6 +217,27 @@ type Message struct {
 	// The raw message struct. This is the raw unmodified data, which means the actual message might
 	// be wrapped in DeviceSentMessage, EphemeralMessage or ViewOnceMessage.
 	RawMessage *waProto.Message
+}
+
+// UnwrapRaw fills the Message, IsEphemeral and IsViewOnce fields based on the raw message in the RawMessage field.
+func (evt *Message) UnwrapRaw() *Message {
+	evt.Message = evt.RawMessage
+	if evt.Message.GetDeviceSentMessage().GetMessage() != nil {
+		evt.Info.DeviceSentMeta = &types.DeviceSentMeta{
+			DestinationJID: evt.Message.GetDeviceSentMessage().GetDestinationJid(),
+			Phash:          evt.Message.GetDeviceSentMessage().GetPhash(),
+		}
+		evt.Message = evt.Message.GetDeviceSentMessage().GetMessage()
+	}
+	if evt.Message.GetEphemeralMessage().GetMessage() != nil {
+		evt.Message = evt.Message.GetEphemeralMessage().GetMessage()
+		evt.IsEphemeral = true
+	}
+	if evt.Message.GetViewOnceMessage().GetMessage() != nil {
+		evt.Message = evt.Message.GetViewOnceMessage().GetMessage()
+		evt.IsViewOnce = true
+	}
+	return evt
 }
 
 // ReceiptType represents the type of a Receipt event.

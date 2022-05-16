@@ -9,6 +9,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -17,6 +18,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"syscall"
@@ -45,7 +47,6 @@ var debugLogs = flag.Bool("debug", false, "Enable debug logs?")
 var dbDialect = flag.String("db-dialect", "sqlite3", "Database dialect (sqlite3 or postgres)")
 var dbAddress = flag.String("db-address", "file:mdtest.db?_foreign_keys=on", "Database address")
 var requestFullSync = flag.Bool("request-full-sync", false, "Request full (1 year) history sync when logging in?")
-var oneMessageAtATime = flag.Bool("one-message-at-a-time", false, "Only allow one message send to be in flight at a time?")
 
 func main() {
 	waBinary.IndentXML = true
@@ -72,7 +73,6 @@ func main() {
 	}
 
 	cli = whatsmeow.NewClient(device, waLog.Stdout("Client", logLevel, true))
-	cli.OneMessageAtATime = *oneMessageAtATime
 
 	ch, err := cli.GetQRChannel(context.Background())
 	if err != nil {
@@ -182,6 +182,21 @@ func handleCmd(cmd string, args []string) {
 				log.Errorf("Failed to sync app state: %v", err)
 			}
 		}
+	case "request-appstate-key":
+		if len(args) < 1 {
+			log.Errorf("Usage: request-appstate-key <ids...>")
+			return
+		}
+		var keyIDs = make([][]byte, len(args))
+		for i, id := range args {
+			decoded, err := hex.DecodeString(id)
+			if err != nil {
+				log.Errorf("Failed to decode %s as hex: %v", id, err)
+				return
+			}
+			keyIDs[i] = decoded
+		}
+		cli.DangerousInternals().RequestAppStateKeys(keyIDs)
 	case "checkuser":
 		if len(args) < 1 {
 			log.Errorf("Usage: checkuser <phone numbers...>")
@@ -360,6 +375,28 @@ func handleCmd(cmd string, args []string) {
 		} else {
 			log.Infof("Joined %s", groupID)
 		}
+	case "getstatusprivacy":
+		resp, err := cli.GetStatusPrivacy()
+		fmt.Println(err)
+		fmt.Println(resp)
+	case "setdisappeartimer":
+		if len(args) < 2 {
+			log.Errorf("Usage: setdisappeartimer <jid> <days>")
+			return
+		}
+		days, err := strconv.Atoi(args[1])
+		if err != nil {
+			log.Errorf("Invalid duration: %v", err)
+			return
+		}
+		recipient, ok := parseJID(args[0])
+		if !ok {
+			return
+		}
+		err = cli.SetDisappearingTimer(recipient, time.Duration(days)*24*time.Hour)
+		if err != nil {
+			log.Errorf("Failed to set disappearing timer: %v", err)
+		}
 	case "send":
 		if len(args) < 2 {
 			log.Errorf("Usage: send <jid> <text>")
@@ -432,7 +469,6 @@ func handleCmd(cmd string, args []string) {
 					Id:        proto.String(messageID),
 				},
 				Text:              proto.String(reaction),
-				GroupingKey:       proto.String(reaction),
 				SenderTimestampMs: proto.Int64(time.Now().UnixMilli()),
 			},
 		}
@@ -592,5 +628,19 @@ func handler(rawEvt interface{}) {
 		_ = file.Close()
 	case *events.AppState:
 		log.Debugf("App state event: %+v / %+v", evt.Index, evt.SyncActionValue)
+	case *events.KeepAliveTimeout:
+		log.Debugf("Keepalive timeout event: %+v", evt)
+		if evt.ErrorCount > 3 {
+			log.Debugf("Got >3 keepalive timeouts, forcing reconnect")
+			go func() {
+				cli.Disconnect()
+				err := cli.Connect()
+				if err != nil {
+					log.Errorf("Error force-reconnecting after keepalive timeouts: %v", err)
+				}
+			}()
+		}
+	case *events.KeepAliveRestored:
+		log.Debugf("Keepalive restored")
 	}
 }
