@@ -217,7 +217,12 @@ func (cli *Client) canRetry(receipt *events.Receipt) bool {
 		return false
 	}
 
+	if len(users) == 0 {
+		return false
+	}
+
 	user := users[0]
+
 	if user.VerifiedName == nil {
 		return true
 	}
