@@ -203,8 +203,10 @@ func (cli *Client) handleRetryReceipt(receipt *events.Receipt, node *waBinary.No
 
 	if cli.canRetry(receipt) {
 		cli.Log.Debugf("Sent retry #%d for %s/%s to %s", retryCount, receipt.Chat, messageID, receipt.Sender)
-		cli.SendMessage(receipt.Chat, messageID, msg)
+		_, err := cli.SendMessage(receipt.Chat, messageID, msg)
+		return err
 	}
+
 	return nil
 }
 
