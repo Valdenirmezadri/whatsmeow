@@ -40,6 +40,9 @@ func (cli *Client) handleEncryptedMessage(node *waBinary.Node) {
 	if err != nil {
 		cli.Log.Warnf("Failed to parse message: %v", err)
 	} else {
+		if info.VerifiedName != nil && len(info.VerifiedName.Details.GetVerifiedName()) > 0 {
+			go cli.updateBusinessName(info.Sender, info, info.VerifiedName.Details.GetVerifiedName())
+		}
 		if len(info.PushName) > 0 && info.PushName != "-" {
 			go cli.updatePushName(info.Sender, info, info.PushName)
 		}
@@ -48,6 +51,10 @@ func (cli *Client) handleEncryptedMessage(node *waBinary.Node) {
 }
 
 func (cli *Client) parseMessageSource(node *waBinary.Node, requireParticipant bool) (source types.MessageSource, err error) {
+	if cli.Store.ID == nil {
+		err = ErrNotLoggedIn
+		return
+	}
 	ag := node.AttrGetter()
 	from := ag.JID("from")
 	if from.Server == types.GroupServer || from.Server == types.BroadcastServer {
@@ -100,6 +107,11 @@ func (cli *Client) parseMessageInfo(node *waBinary.Node) (*types.MessageInfo, er
 	for _, child := range node.GetChildren() {
 		if child.Tag == "multicast" {
 			info.Multicast = true
+		} else if child.Tag == "verified_name" {
+			info.VerifiedName, err = parseVerifiedNameContent(child)
+			if err != nil {
+				cli.Log.Warnf("Failed to parse verified_name node in %s: %v", info.ID, err)
+			}
 		} else if mediaType, ok := child.AttrGetter().GetString("mediatype", false); ok {
 			info.MediaType = mediaType
 		}
