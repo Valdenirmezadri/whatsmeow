@@ -270,6 +270,10 @@ func (cli *Client) getOwnID() types.JID {
 	return *id
 }
 
+func (cli *Client) GetOwnID() types.JID {
+	return cli.getOwnID()
+}
+
 func (cli *Client) WaitForConnection(timeout time.Duration) bool {
 	timeoutChan := time.After(timeout)
 	cli.socketLock.RLock()
