@@ -206,8 +206,12 @@ func (cli *Client) handleRetryReceipt(receipt *events.Receipt, node *waBinary.No
 		return fmt.Errorf("failed to send retry message: %w", err)
 	}
 
-	if cli.canRetry(receipt) {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	if receiptRetry.canRetry(cli, receipt) {
+		if receiptRetry.stopRetry(cli, messageID) {
+			return nil
+		}
+		<-time.After(10 * time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), (15 * time.Second))
 		defer cancel()
 		cli.Log.Debugf("Sent retry #%d for %s/%s to %s", retryCount, receipt.Chat, messageID, receipt.Sender)
 		_, err := cli.SendMessage(ctx, receipt.Chat, msg, SendRequestExtra{ID: messageID})
@@ -215,34 +219,6 @@ func (cli *Client) handleRetryReceipt(receipt *events.Receipt, node *waBinary.No
 	}
 
 	return nil
-}
-
-// canRetry returns true if account is not verified
-//
-//	if account is a verified account, an retry looping issue occur
-func (cli *Client) canRetry(receipt *events.Receipt) bool {
-	users, err := cli.IsOnWhatsApp([]string{"+" + receipt.Chat.String()})
-
-	if err != nil {
-		return false
-	}
-
-	if len(users) == 0 {
-		return false
-	}
-
-	user := users[0]
-
-	if user.VerifiedName == nil {
-		return true
-	}
-
-	if user.VerifiedName.Certificate.ServerSignature == nil {
-		return true
-	}
-
-	//ServerSignature not null = verified account
-	return false
 }
 
 // sendRetryReceipt sends a retry receipt for an incoming message.
