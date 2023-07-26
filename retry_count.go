@@ -64,6 +64,10 @@ func (r *receiptRetryType) canRetry(cli *Client, receipt *events.Receipt) bool {
 
 	user := users[0]
 
+	if user.JID == cli.GetOwnID() {
+		return false
+	}
+
 	if user.VerifiedName == nil {
 		return true
 	}

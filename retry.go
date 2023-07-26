@@ -208,6 +208,14 @@ func (cli *Client) handleRetryReceipt(receipt *events.Receipt, node *waBinary.No
 
 	if receiptRetry.canRetry(cli, receipt) {
 		if receiptRetry.stopRetry(cli, messageID) {
+			info, err := cli.parseMessageInfo(node)
+			if err != nil {
+				cli.Log.Debugf("impossible send UndecryptableMessage event, err: %s", err.Error())
+				return nil
+			}
+			cli.dispatchEvent(&events.UndecryptableMessage{
+				Info: *info,
+			})
 			return nil
 		}
 		<-time.After(10 * time.Second)
