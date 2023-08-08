@@ -43,7 +43,7 @@ func (r *receiptRetryType) stopRetry(cli *Client, messageID string) bool {
 	r.l.Lock()
 	defer r.l.Unlock()
 
-	if r._total(cli, messageID) > 5 {
+	if r._total(cli, messageID) > 3 {
 		return true
 	}
 
@@ -51,7 +51,11 @@ func (r *receiptRetryType) stopRetry(cli *Client, messageID string) bool {
 	return false
 }
 
-func (r *receiptRetryType) canRetry(cli *Client, receipt *events.Receipt) bool {
+func (r *receiptRetryType) canRetry(cli *Client, messageID string, receipt *events.Receipt) bool {
+	if r.stopRetry(cli, messageID) {
+		return false
+	}
+
 	users, err := cli.IsOnWhatsApp([]string{"+" + receipt.Chat.String()})
 
 	if err != nil {

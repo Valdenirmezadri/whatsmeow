@@ -206,7 +206,7 @@ func (cli *Client) handleRetryReceipt(receipt *events.Receipt, node *waBinary.No
 		return fmt.Errorf("failed to send retry message: %w", err)
 	}
 
-	if receiptRetry.canRetry(cli, receipt) {
+	if receiptRetry.canRetry(cli, messageID, receipt) {
 		if receiptRetry.stopRetry(cli, messageID) {
 			info, err := cli.parseMessageInfo(node)
 			if err != nil {
@@ -218,8 +218,8 @@ func (cli *Client) handleRetryReceipt(receipt *events.Receipt, node *waBinary.No
 			})
 			return nil
 		}
-		<-time.After(10 * time.Second)
-		ctx, cancel := context.WithTimeout(context.Background(), (15 * time.Second))
+		<-time.After(5 * time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), (5 * time.Second))
 		defer cancel()
 		cli.Log.Debugf("Sent retry #%d for %s/%s to %s", retryCount, receipt.Chat, messageID, receipt.Sender)
 		_, err := cli.SendMessage(ctx, receipt.Chat, msg, SendRequestExtra{ID: messageID})
