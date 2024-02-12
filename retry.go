@@ -312,7 +312,7 @@ func (cli *Client) handleRetryReceipt(receipt *events.Receipt, node *waBinary.No
 		ctx, cancel := context.WithTimeout(context.Background(), (5 * time.Second))
 		defer cancel()
 		cli.Log.Debugf("Sent retry #%d for %s/%s to %s", retryCount, receipt.Chat, messageID, receipt.Sender)
-		_, err := cli.SendMessage(ctx, receipt.Chat, msg, SendRequestExtra{ID: messageID})
+		_, err := cli.SendMessage(ctx, receipt.Chat, msg.wa, SendRequestExtra{ID: messageID})
 		return err
 	}
 
