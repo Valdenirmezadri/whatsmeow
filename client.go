@@ -12,6 +12,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"runtime/debug"
@@ -155,6 +156,7 @@ type Client struct {
 	uniqueID  string
 	idCounter atomic.Uint64
 
+	ip    string
 	proxy socket.Proxy
 	http  *http.Client
 
@@ -286,6 +288,21 @@ func (cli *Client) SetProxy(proxy socket.Proxy) {
 	cli.http.Transport.(*http.Transport).Proxy = proxy
 }
 
+func (cli *Client) SetIP(IP string) {
+	cli.ip = IP
+
+	dialer := &net.Dialer{
+		LocalAddr: &net.TCPAddr{IP: net.ParseIP(cli.ip)},
+	}
+
+	tr := (http.DefaultTransport.(*http.Transport)).Clone()
+	tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		return dialer.DialContext(ctx, network, addr)
+	}
+
+	cli.http.Transport = tr
+}
+
 func (cli *Client) getSocketWaitChan() <-chan struct{} {
 	cli.socketLock.RLock()
 	ch := cli.socketWait
@@ -352,7 +369,7 @@ func (cli *Client) Connect() error {
 		fs.HTTPHeaders.Set("Sec-Fetch-Mode", "websocket")
 		fs.HTTPHeaders.Set("Sec-Fetch-Site", "cross-site")
 	}
-	if err := fs.Connect(); err != nil {
+	if err := fs.Connect(cli.ip); err != nil {
 		fs.Close(0)
 		return err
 	} else if err = cli.doHandshake(fs, *keys.NewKeyPair()); err != nil {

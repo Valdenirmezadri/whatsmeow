@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"sync"
@@ -96,7 +97,7 @@ func (fs *FrameSocket) Close(code int) {
 	}
 }
 
-func (fs *FrameSocket) Connect() error {
+func (fs *FrameSocket) Connect(IP string) error {
 	fs.lock.Lock()
 	defer fs.lock.Unlock()
 
@@ -106,6 +107,17 @@ func (fs *FrameSocket) Connect() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	dialer := websocket.Dialer{
 		Proxy: fs.Proxy,
+	}
+
+	if IP != "" {
+		netDial := &net.Dialer{
+			LocalAddr: &net.TCPAddr{IP: net.ParseIP(IP)},
+		}
+
+		dialer = websocket.Dialer{
+			Proxy:   fs.Proxy,
+			NetDial: netDial.Dial,
+		}
 	}
 
 	fs.log.Debugf("Dialing %s", fs.URL)
