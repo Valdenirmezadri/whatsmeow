@@ -289,6 +289,10 @@ func (cli *Client) SetProxy(proxy socket.Proxy) {
 }
 
 func (cli *Client) SetIP(IP string) {
+	if IP == "" {
+		return
+	}
+
 	cli.ip = IP
 
 	dialer := &net.Dialer{
