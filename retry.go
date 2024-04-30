@@ -336,6 +336,12 @@ func (cli *Client) cancelDelayedRequestFromPhone(msgID types.MessageID) {
 var RequestFromPhoneDelay = 5 * time.Second
 
 func (cli *Client) delayedRequestMessageFromPhone(info *types.MessageInfo) {
+	defer func() {
+		if r := recover(); r != nil {
+			cli.Log.Errorf("panic recovery on request messa from phone")
+		}
+	}()
+
 	if !cli.AutomaticMessageRerequestFromPhone || cli.MessengerConfig != nil {
 		return
 	}
