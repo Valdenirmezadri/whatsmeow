@@ -403,8 +403,8 @@ func (cli *Client) ReactionMessage(chat, sender types.JID, id types.MessageID, r
 func (cli *Client) buildReaction(chat, sender types.JID, id types.MessageID, reaction string) *waProto.Message {
 	key := &waProto.MessageKey{
 		FromMe:    proto.Bool(true),
-		Id:        proto.String(id),
-		RemoteJid: proto.String(chat.String()),
+		ID:        proto.String(id),
+		RemoteJID: proto.String(chat.String()),
 	}
 
 	if !sender.IsEmpty() && sender.User != cli.getOwnID().User {
@@ -418,7 +418,7 @@ func (cli *Client) buildReaction(chat, sender types.JID, id types.MessageID, rea
 		ReactionMessage: &waProto.ReactionMessage{
 			Key:               key,
 			Text:              proto.String(reaction),
-			SenderTimestampMs: proto.Int64(time.Now().UnixMilli()),
+			SenderTimestampMS: proto.Int64(time.Now().UnixMilli()),
 		},
 	}
 }

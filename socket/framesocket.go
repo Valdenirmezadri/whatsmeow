@@ -10,8 +10,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
@@ -19,6 +19,8 @@ import (
 
 	waLog "go.mau.fi/whatsmeow/util/log"
 )
+
+type Proxy = func(*http.Request) (*url.URL, error)
 
 type FrameSocket struct {
 	conn   *websocket.Conn
@@ -94,7 +96,7 @@ func (fs *FrameSocket) Close(code int) {
 	}
 }
 
-func (fs *FrameSocket) Connect(IP string) error {
+func (fs *FrameSocket) Connect() error {
 	fs.lock.Lock()
 	defer fs.lock.Unlock()
 
@@ -102,17 +104,6 @@ func (fs *FrameSocket) Connect(IP string) error {
 		return ErrSocketAlreadyOpen
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-
-	if IP != "" {
-		netDial := &net.Dialer{
-			LocalAddr: &net.TCPAddr{IP: net.ParseIP(IP)},
-		}
-
-		dialer = websocket.Dialer{
-			Proxy:   fs.Proxy,
-			NetDial: netDial.Dial,
-		}
-	}
 
 	fs.log.Debugf("Dialing %s", fs.URL)
 	conn, _, err := fs.Dialer.Dial(fs.URL, fs.HTTPHeaders)

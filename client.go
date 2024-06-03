@@ -158,8 +158,7 @@ type Client struct {
 	uniqueID  string
 	idCounter atomic.Uint64
 
-	ip    string
-	proxy socket.Proxy
+	ip             string
 	proxy          Proxy
 	socksProxy     proxy.Dialer
 	proxyOnlyLogin bool
@@ -447,6 +446,18 @@ func (cli *Client) Connect() error {
 			}
 		}
 	}
+
+	if cli.ip != "" {
+		netDial := &net.Dialer{
+			LocalAddr: &net.TCPAddr{IP: net.ParseIP(cli.ip)},
+		}
+
+		wsDialer = websocket.Dialer{
+			Proxy:   cli.proxy,
+			NetDial: netDial.Dial,
+		}
+	}
+
 	fs := socket.NewFrameSocket(cli.Log.Sub("Socket"), wsDialer)
 	if cli.MessengerConfig != nil {
 		fs.URL = "wss://web-chat-e2ee.facebook.com/ws/chat"
@@ -456,7 +467,7 @@ func (cli *Client) Connect() error {
 		fs.HTTPHeaders.Set("Sec-Fetch-Mode", "websocket")
 		fs.HTTPHeaders.Set("Sec-Fetch-Site", "cross-site")
 	}
-	if err := fs.Connect(cli.ip); err != nil {
+	if err := fs.Connect(); err != nil {
 		fs.Close(0)
 		return err
 	} else if err = cli.doHandshake(fs, *keys.NewKeyPair()); err != nil {
