@@ -22,6 +22,11 @@ func (cli *Client) handleReceipt(node *waBinary.Node) {
 	} else if receipt != nil {
 		if receipt.Type == types.ReceiptTypeRetry {
 			go func() {
+				defer func() {
+					if r := recover(); r != nil {
+						cli.Log.Errorf("Recovered from panic in handleRetryReceipt: %+v", r)
+					}
+				}()
 				err := cli.handleRetryReceipt(receipt, node)
 				if err != nil {
 					cli.Log.Errorf("Failed to handle retry receipt for %s/%s from %s: %v", receipt.Chat, receipt.MessageIDs[0], receipt.Sender, err)
